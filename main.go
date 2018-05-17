@@ -2,10 +2,11 @@ package main
 
 import (
 	"net/http"
-	"io/ioutil"
 	"path/filepath"
 	"os"
 	"time"
+	"io"
+	"fmt"
 )
 
 func createDownloadsDirectoryIfNotExists(downloadsDirectory string){
@@ -16,18 +17,19 @@ func createDownloadsDirectoryIfNotExists(downloadsDirectory string){
 	os.MkdirAll(downloadsDirectory, os.ModePerm)
 }
 
-func createFile(data []byte,downloadsDirectory string ,path string){
+func createFile(downloadsDirectory string ,path string) *os.File{
 
 	fileName := downloadsDirectory+filepath.Base(path)
 	println("Guardando "+fileName+" en disco...")
 
-	err2 := ioutil.WriteFile(fileName, data, 0644)
+	file, err2 := os.Create(fileName)
 	if err2 != nil {
 		panic("Error al guardar el archivo en disco")
 	}
+	return file
 }
 
-func getFile (url string) []byte{
+func downloadFile (url string,file *os.File){
 	resp, err := http.Get(url)
 	defer resp.Body.Close()
 	if err != nil {
@@ -35,8 +37,7 @@ func getFile (url string) []byte{
 	}
 
 	println("Descargando archivo desde "+url)
-	body, err := ioutil.ReadAll(resp.Body)
-	return body
+	io.Copy(file,resp.Body)
 }
 
 func main() {
@@ -46,11 +47,11 @@ func main() {
 	downloadsDirectory := "Downloads/"
 
 	createDownloadsDirectoryIfNotExists(downloadsDirectory)
-	data := getFile("https://pbs.twimg.com/profile_images/554798224154701824/mWd3laxO_400x400.png")
-	createFile(data,downloadsDirectory,path)
+	file := createFile(downloadsDirectory,path)
 
-	t := time.Now()
-	elapsed := t.Sub(start)/1000/1000
-	println("Descarga completada en ",elapsed,"ms!")
+	downloadFile(path,file)
+
+	elapsed := time.Since(start)
+	fmt.Printf("Descarga completada en %v \n",elapsed)
 }
 
